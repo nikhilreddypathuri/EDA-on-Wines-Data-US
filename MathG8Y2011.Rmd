@@ -1,0 +1,365 @@
+---
+title: "NAEP  Math 8th Grade 2011"
+author: "Daniel Carr"
+date: "October 16, 2017"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 0. Setup
+
+```{r}
+library(tidyverse)
+library(micromapST)
+```
+
+
+## 1. Introduction
+
+The document NAEP Nations Report Card Data Table Access
+describes obtaining the data from the NCES web site.  
+
+I download csv file and renamed it "MathG8Y2011.csv".
+
+To discuss an easy and common way to prepare a csv 
+file for statistical graphics production I use Excel 
+remove sigDiff and sigSymbol columns and two rows (for DoDEA and
+the National Pubic) and saved this in the file 
+"MathG8Y2011Fixed.csv".  Removing the column was not
+necessary, but it is not used in produce a linked
+micromap but micromapST will not recognized
+the two rows when trying to plot US states. 
+
+The hand editing approach is often easy and successful
+in the short terms, but often to leads to gaps reproducible
+research trail.  While it may take a little more work
+There merit in use an R script to fix the data because this provides documentation of what was done, support
+reproduce the result and make changes later on.
+
+Below we read the file to create a data.frame and show
+how to used this in produce an introductory link micromaps
+with three dot plot columns as preliminary.
+
+With the data.frame in hand there are two basic tasks, 
+creating micromap column description data.frame
+and providing arguments to the micromapST function to
+produce the plot. 
+
+## 1.1 Read a valid state name file and NAEP csv file.name
+
+```{r}
+stateNames <- read.csv(file = 'stateNames.csv',
+  header = TRUE,as.is = TRUE)[,1]
+
+toFix <- read.csv(file = "MathG8Y2011.csv",
+  header = TRUE,as.is = TRUE)
+   
+head(toFix)
+```
+## use select to remove varaiables and filter to remove rows
+```{r}
+mG8Y2011 <- toFix %>% 
+  select(-(SigDiff:SigSymbol)) %>%
+  filter(Jurisdiction %in% stateNames)
+head(mG8Y2011)
+```
+
+## 1.1b Read the fixed data
+
+```{r}
+mG8Y2011Fixed <- read.csv(file = "MathG8Y2011Fixed.csv",
+  header = TRUE,as.is = TRUE)
+
+# compare the resulting data frames
+all.equal(mG8Y2011, mG8Y2011Fixed)
+```
+
+
+## 1.2 Create a micromap column description data.frame
+```{r}
+## Run
+
+colDesc <- data.frame(
+type = c('map','id','dot','dot'),
+lab1 = c('','','Average Points','Average Price (x10 USD)'),
+#lab2 = c('' ,'','Mean'),
+#lab3 = c('','','Possible 80-100','Percent),
+col1 = c(NA,NA,'points','price')
+)
+
+t(colDesc)
+```
+
+In the column specificaton above, the micromap is to have
+5 types of column.  They are, in left to right order, a map
+column, and id column and three dot plot columns.
+
+Each column can have two label lines above it and one
+label line below it.  
+
+The lab1 argument is a character string vector with
+a character string for each column. The map and id
+columns have automatic labels.  We enter two null
+string ('', '' ,) as place holders. We want the top
+label in the 3rd column to be blank so include another null
+string ('',) as a place holder. We want the top labels
+in the 4th and 5th columns to be 'Above'.   
+
+The lab2 argument is a character string vector with a
+character string for each column.  Again we include
+empty character string as place holders for the map
+and id columns. This time we label the three last columns.
+
+The lab3 argument ia character string vector with a
+character string for each column. The   
+dot column bottom labels include the units of measure.
+
+The col1 argument specifies the column values in the data.frame
+to locate dots respective columns of the micromap.
+
+A second micromap example specifies dotse as column types. 
+Each micromap dotse column requires two columns
+from data data.frame, one for mean and one for the standard error. 
+plot. Hence the column description will have a col2 line
+to specify the "se" data columns.  
+
+There are more panel description arguments that can be included
+in the column description file when needed.
+
+## 1.3 Use the micromapST function to produce plot. 
+
+Below the first two arguments are the data data.frame
+and the column description data.frame.  
+
+The next two arguments specify column with the
+state ids and the type of id. 
+
+The plotNames='full' puts the full statenames in the micromap.
+the sortVar = 'MN' uses the variable to sort,
+and ascend=FALSE makes the order descending.  
+The title argument is a character string of length one or two.  
+
+```{r echo=FALSE, fig.width=7.5, fig.height=10}
+#pdf(file= "mG8Y2011Dots.pdf" , width=7.5, height=10)
+
+micromapST(usavgscore, colDesc,
+  rowNamesCol = 'province', rowNames = 'full',
+  plotNames= 'full',
+  sortVar = 'points',ascend=FALSE,
+  title = c('US Wines Data',
+          'Average Points and Prices')) 
+
+#dev.off()
+```
+
+
+## 2. Dot plots with 95% confidence interval based on standard errors
+
+## 2.1 Change the column description data.frame
+
+The glyph use 'dotse'.  We also specify
+the location of the standard errors in the  
+data data.frame using the col2 vector.
+
+```{r}
+## Run
+
+colDescSe <- data.frame(
+type = c('map','id','dotse','dotse','dotse'),
+lab1 = c('','','','Above','Above'),
+lab2 = c('' ,'','Mean','Basic','Proficient'),
+lab3 = c('','','Possible 0-500','Percent','Percent'),
+col1 = c(NA,NA,'MN','AB','AP'),
+col2 = c(NA,NA,'MN_SE','AB_SE','AP_SE')
+  )
+
+t(colDescSe)
+```
+
+
+## 2.2 This time open a pdf file, produce plot, and close the file.  
+
+```{r }
+pdf(file = "mG8Y2011DotsSe.pdf" , width = 7.5, height = 10)
+
+micromapST(mG8Y2011, colDescSe,
+  rowNamesCol = 1,
+  rowNames = "full",
+  plotNames = "full",
+  sortVar = "MN",ascend = FALSE,
+  title = c("NAEP Math Grade 8 in 2011",
+          "Average Scale Scores and Achievement Percents"))
+
+dev.off()
+```
+
+## 2.3 Dot and confidence intervals with lower and upper bounds 
+
+The this case the use the dotconf glyph. There col1, col2, and
+col3 rows colDesc data.frame to specify the data.frame column
+for the estimate, the lower bound and the upper bound respectively
+
+## 3. Map types, arrow glyphs and reference values
+
+In the colDesc data.frame we can specify
+four different types of maps:
+map, mapcum, maptail and mapmedian.
+
+The "map" version shown does the least to
+reveal spatial patterns but is likely the
+easiest to understand at first encounter.
+
+Cumulative highlighted maps, "mapcum" is natural version to
+introduce next. We reading the maps top down, once
+state polygon is highlighted using as saturated color
+and black outline, will continue to popped into
+the foreground using a light yellow fill with
+a black outline.
+
+The accumulation for foreground state polygons
+as we read downward from the top of the plot.
+provide 10 highlighted polygon contours that
+reveal clusters and shapes. The pattern can
+motivate hypothesis generation about the
+phenomena the behind the patterns.
+
+
+The maptail option accumulates states from the top down
+to the middle and from the bottom up to the middle.
+Top down accumulation pops more and more states into
+the foreground. Maps can look very busy when
+more than half of the states are in the foreground.  
+While having both the top and bottom as starting points for
+accumulation toward the middle requires the reader to shift
+perspective, experienced viewer may appreciate the
+simpler appearance for the bottom half of the plot.
+
+In the top half of the map column, "mapmedian" maps
+highlight all the states at or above the median of
+the sorting variable. In the bottom half of the
+map column in highlights all of the states below
+the map column.  (This assumes a decrease value map
+order.)
+
+
+Arrows provide a good way to show two values and
+their difference.  Here we use arrows to compare males and
+females.  Often we use arrows in a temporal context
+to convey before and after values.  The arrow ends
+use  position along a scale to encode two variables
+and length to encode there difference.
+(Arrow head are associated with an optical illusion
+sour our ability to compared lengths accurately
+may be reduce.)
+
+A drawback of using arrows to show differences is
+that the plot resolution for showing the difference.
+The range of the two variables being compare sets the
+comparison scale. The lengths of the difference may be
+very small on this scale.
+
+Using the arrows from zero for the Male - Female
+greatly increases the resolution in the example below albeit
+at the cost not directly provide the context of the original
+values.
+
+Sometimes there is a relationship between the difference of
+two paired values and their average.  Looking a ratio of these
+two transformed values can be informative, but not
+shown in this example. The calculation is evident in the
+script below but I remove this from plotting script that follows.
+
+## Run
+
+mathG8Gender13$Zero <- rep(0,nrow(mathG8Gender13))
+# not helpful
+# vM <- stateDF$Male
+# vF <- stateDF$Female
+# mathG8Gender13$RelDif <- (vM-vF)/(vM+vF)/2
+
+panelDesc <- data.frame(
+type=c('mapcum','id','arrow','arrow'),
+lab1=c('','','Female To','0 To'),
+lab2=c('' ,'','Male','Male-Female'),
+col1 = c(NA,NA,13,17),
+col2 = c(NA,NA,10,16),
+refVals=c(NA,NA,NA,0))
+
+fName = "MathG8Gender2013 Arrows.pdf"
+pdf(file=fName,width=7.5,height=10)
+micromapST(mathG8Gender13,panelDesc,
+  sortVar=16,ascend=FALSE,
+  title=c("NAEP Math Grade 8 in 2013",
+          "Average Scale Scores"))
+
+dev.off()
+
+
+6. Maptail and Dots with confidence Intervals=======
+
+As indicated above maptail maps accumulate from the
+the top down to the middle and from the bottom up
+to the middle.
+
+The following creates good resolution a
+300 dots per in inch .png file.
+Such files may be easier to include
+in Microsoft documents than .pdf files.
+If this isn't supported on your operating
+systems you may switch back to using
+a pdf file for output.
+
+## Run
+
+panelDesc <- data.frame(
+type=c('maptail','id','dotconf','dotconf'),
+lab1=c('','','Male Estimates ','Female Estimates'),
+lab2=c('' ,'','and 95% CIs','and 95% CIs'),
+col1 = c(NA,NA,10,13),
+col2 = c(NA,NA,11,14),
+col3 = c(NA,NA,12,15))
+
+fName = "Math G8 Gender 2013 DotConf.png"
+png(file=fName,width=7,height=10,
+    units="in",res=300)
+micromapST(mathG8Gender13, panelDesc,
+  sortVar=13,ascend=FALSE,
+  title=c("NAEP Math Grade 8 in 2013",
+          "Average Scale Scores"))
+
+dev.off()
+
+## End
+
+
+7. More information is available about micromapSt
+
+Some is in R.
+
+## Run
+
+?micromapST
+
+## End
+
+The micromapST.pdf file is paper entitled
+
+micromapST: Exploring and Communicating
+Geospatial Patterns in U.S. State Data
+
+It has several examples showning options.
+The examples can be instructive
+Table 1 on page 11 covers
+all the major options now available.
+
+It is difficult to design in such limited
+space.  There are aspect ratio and overplotting
+problems.  The use of color for linking discourages
+using color for other tasks that really need color
+for fast visual processing. For the most part I suggest
+emphasizing LM plots more like those in the book.
+
+
